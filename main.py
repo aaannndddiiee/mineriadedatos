@@ -3,8 +3,9 @@ import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
 import os
+from tabulate import tabulate
 
-#api.dataset_download_files("tunguz/online-retail", path='data', unzip=True)
+api.dataset_download_files("tunguz/online-retail", path='data', unzip=True)
 df = pd.read_csv('data/Online_Retail.csv', encoding = "latin-1")
 
 def categorizarHora(fila):
@@ -53,6 +54,169 @@ def crear_Columnas(df):
     df = cambiar_Fecha_formato(df)
     df['SpecialDate'] = df['InvoiceDate'].apply(fechas_Especiales)
     return df
+
+def Descriptive_Statistics(df, df_country):
+    df['InvoiceDate'] = pd.to_datetime(df['InvoiceDate'])
+    with open('DescriptiveStatistics.txt', 'a') as file:
+        df_no_c = df.copy()
+        df_no_c = df_no_c[df_no_c['Total'] >= 0]
+        file.write("==== DATASET INFO ====\n")
+        tabla = []
+        filas, columnas = df.shape
+        file.writelines([f"Numero de registros: {filas}\n", f"Numero de columnas: {columnas}\n"])
+        nombres_columnas = df.columns.values
+        tipos_datos = df.dtypes
+        for i in range(len(nombres_columnas)):
+            tabla.append([nombres_columnas[i], tipos_datos[i]])
+        file.write(tabulate(tabla, headers=["Nombre Columna", "Tipo de dato"], tablefmt="grid"))
+
+        file.write("\n==== DESCRIPTIVE STATISTICS ====\n")
+        columnas = ["Quantity", "UnitPrice", "Total"]
+        tabla = []
+        for i in range(3):
+            tabla.append([columnas[i], df[columnas[i]].mean().round(2), df[columnas[i]].std().round(2),df[columnas[i]].min().round(2), df[columnas[i]].quantile(0.25).round(2),df[columnas[i]].quantile(0.5).round(2), df[columnas[i]].quantile(0.75).round(2)])
+        file.write(tabulate(tabla, headers=["Columnas", "Media", "Desviacion Estandar", "Valor Minimo", "Valor Maximo", "Percentil 25%", "Percentil 50%", "Percentil 75%"], tablefmt="grid"))
+
+        file.write("\n==== CUSTOMER ANALYSIS ====\n")
+        df_country.reset_index()
+        num_por_pais = df_country.to_list()
+        paises = df_country.keys().to_list()
+        tabla = []
+        for i in range(len(paises)):
+            tabla.append([paises[i], num_por_pais[i]])
+        file.write(tabulate(tabla, headers=["Pais", "Clientes por pais"], tablefmt="grid"))
+        file.write("\nTop 10 clientes que mas gastan\n")
+        df_by_client = df_no_c.groupby(["CustomerID"])["Total"].sum()
+        df_by_client = df_by_client.reset_index()
+        df_by_client = df_by_client.sort_values(by="Total", ascending=False)
+        valores = df_by_client["CustomerID"].values
+        total = df_by_client["Total"].values
+        tabla = []
+        for i in range(10):
+            tabla.append([valores[i], total[i]])
+        file.write(tabulate(tabla, headers=["CustomerID", "Total de compras"], tablefmt="grid"))
+        file.write("\nResumen de clientes\n")
+        file.write(f"Total de clientes: {df_by_client['CustomerID'].count()}\n")
+        file.write(f"Promedio de total de compras: {df_by_client['Total'].mean().round(2)}\n")
+        file.write(f"Percentil de compras total 25%: {df_by_client['Total'].quantile(0.25).round(2)}\n")
+        file.write(f"Percentil de compras total 75%: {df_by_client['Total'].quantile(0.75).round(2)}\n")
+    
+        file.write("\n==== COUNTRY ANALYSIS ====\n")
+        df_paises = df_no_c[df_no_c['Country'] != 'United Kingdom']
+        df_compras= df_paises.groupby(["Country"])["InvoiceNo"].nunique()
+        df_compras = df_compras.reset_index()
+        df_totales= df_paises.groupby(["Country"])["Total"].sum()
+        df_totales = df_totales.reset_index()
+        df_promedio= df_paises.groupby(["Country"])["Total"].mean()
+        df_promedio = df_promedio.reset_index()
+        df_compras = df_compras.sort_values(by = 'InvoiceNo', ascending=False).head(10)
+        df_totales = df_totales.reset_index()
+        df_totales = df_totales.sort_values(by = 'Total', ascending=False).head(10)
+        df_promedio = df_promedio.reset_index()
+        df_promedio = df_promedio.sort_values(by = 'Total', ascending=False).head(10)
+        file.write("Top 10 paises\n")
+        file.write("\nTotal de facturas por pais (sin UK)\n")
+        tabla = []
+        for i in range(10):
+            tabla.append([df_compras['Country'].values[i], df_compras['InvoiceNo'].values[i]])
+        file.write(tabulate(tabla, headers=["Pais", "Total de facturas"], tablefmt="grid"))
+        file.write("\nTotal de compra por pais (sin UK)\n")
+        tabla = []
+        for i in range(10):
+            tabla.append([df_totales['Country'].values[i], df_totales['Total'].values[i]])
+        file.write(tabulate(tabla, headers=["Pais", "Total de compra"], tablefmt="grid"))
+        file.write("\nPromedio de compra por pais (sin UK)\n")
+        tabla = []
+        for i in range(10):
+            tabla.append([df_promedio['Country'].values[i], df_promedio['Total'].values[i]])
+        file.write(tabulate(tabla, headers=["Pais", "Promedio de compra"], tablefmt="grid"))
+
+        file.write("\n==== TIME ANALYSIS ====\n")
+        file.write("Promedio de compra por dia\n")
+        df_dia = df_no_c.groupby(["Day"])["Total"].mean()
+        df_dia = df_dia.reset_index()
+        tabla = []
+        for i in range(len(df_dia['Day'].values)):
+            tabla.append([df_dia['Day'].values[i], df_dia['Total'].values[i].round(2)])
+        file.write(tabulate(tabla, headers=["Dia", "Promedio de compra"], tablefmt="grid"))
+        df_com = df_no_c.groupby(df['InvoiceDate'].dt.date)['InvoiceNo'].nunique()
+        file.write(f"\nPromedio de facturas por dia: {df_com.mean().round(2)}\n")
+        file.write(f"Numero minimo facturas realizadas: {df_com.min().round(2)}\n")
+        file.write(f"Numero maximo facturas realizadas: {df_com.max().round(2)}\n")
+        file.write("Promedio de facturas por dia de la semana\n")
+        df_com = df_com.reset_index()
+        df_com['InvoiceDate'] = pd.to_datetime(df_com["InvoiceDate"])
+        df_com['Day'] = df_com['InvoiceDate'].dt.day_name()
+        df_com['Month'] = df_com['InvoiceDate'].dt.month_name()
+        df_dia = df_com.groupby(["Day"])["InvoiceNo"].mean()
+        df_dia = df_dia.reset_index()
+        tabla = []
+        for i in range(len(df_dia['Day'].values)):
+            tabla.append([df_dia['Day'].values[i], df_dia['InvoiceNo'].values[i].round(0)])
+        file.write(tabulate(tabla, headers=["Dia", "Promedio de factuars"], tablefmt="grid" ))
+        df_mes = df_com.groupby(["Month"])["InvoiceNo"].mean()
+        df_mes = df_mes.reset_index()
+        file.write("\nPromedio de facturas por mes\n")
+        tabla = []
+        for i in range(len(df_mes['Month'].values)):
+            tabla.append([df_mes['Month'].values[i], df_mes['InvoiceNo'].values[i].round(0)])
+        file.write(tabulate(tabla, headers=["Mes", "Promedio de factuars"], tablefmt="grid" ))
+
+        file.write("\n==== SPECIAL DATES ANALYSIS ====\n")
+        df_especial = df_no_c.groupby(["SpecialDate", "Year"])["InvoiceNo"].nunique()
+        df_especial = df_especial.reset_index()
+        df_especial = df_especial[df_especial['Year'] != 2010] 
+        file.write("Numero de facturas en las fechas especiales en 2010\n")
+        tabla = []
+        for i in range(len(df_especial['SpecialDate'].values)):
+            tabla.append([df_especial['SpecialDate'].values[i], df_especial['InvoiceNo'].values[i]])
+        file.write(tabulate(tabla, headers=["Fecha Especial", "Total de facturas"], tablefmt="grid" ))
+
+        file.write("\n==== RETURN  ANALYSIS ====\n")
+        df_cancel = df[df['Total'] < 0]
+        df_cancel = df_cancel.groupby(["CustomerID", "Country", "Total"])['InvoiceNo'].nunique()
+        df_cancel = df_cancel.reset_index()
+        file.write(f"Total de cancelaciones: {df_cancel['InvoiceNo'].count()}\n")
+        file.write(f"Monto total de cancelado: {df_cancel['Total'].sum().round(2)}\n")
+        file.write(f"Promedio de cancelado: {df_cancel['Total'].mean().round(2)}\n")
+        file.write(f"Monto minimo cancelado: {df_cancel['Total'].min().round(2)}\n")
+        file.write(f"Monto maximo cancelado: {df_cancel['Total'].max().round(2)}\n")
+        file.write(f"Percentil de cancelado total 25%: {df_cancel['Total'].quantile(0.25).round(2)}\n")
+        file.write(f"Percentil de cancelado total 75%: {df_cancel['Total'].quantile(0.75).round(2)}\n")
+        file.write(f"Proporcion de cancelaciones: {(df_cancel['InvoiceNo'].count() / df['InvoiceNo'].nunique()):.2f}%\n")
+        df_canc_cliente = df_cancel.groupby(df['CustomerID'])['Total'].sum()
+        df_canc_cliente = df_canc_cliente.reset_index()
+        df_canc_cliente = df_canc_cliente.sort_values(by="Total", ascending=True).head(10)
+        file.write("Top 10 clientes con mayor monto cancealdo\n")
+        tabla = []
+        for i in range(10):
+            tabla.append([df_canc_cliente['CustomerID'].values[i], df_canc_cliente['Total'].values[i].round(2)])
+        file.write(tabulate(tabla, headers=["CustomerID", "Total cancelado"], tablefmt="grid"))
+        file.write("\nTop 10 clientes con mayor numero de facturas canceladas\n")
+        df_canc_cliente = df_cancel.groupby(df['CustomerID'])['InvoiceNo'].count()
+        df_canc_cliente = df_canc_cliente.reset_index()
+        df_canc_cliente = df_canc_cliente.sort_values(by = 'InvoiceNo', ascending=False).head(10)
+        tabla = []
+        for i in range(10):
+            tabla.append([df_canc_cliente['CustomerID'].values[i], df_canc_cliente['InvoiceNo'].values[i]])
+        file.write(tabulate(tabla, headers=["CustomerID", "Total de facturas"], tablefmt="grid"))
+        file.write("\nTop 10 paises con mas monto total cancelado\n")
+        df_canc_paises = df_cancel.groupby(df['Country'])['Total'].sum()
+        df_canc_paises = df_canc_paises.reset_index()
+        df_canc_paises = df_canc_paises.sort_values(by = 'Total').head(10)
+        tabla = []
+        for i in range(10):
+            tabla.append([df_canc_paises['Country'].values[i], df_canc_paises['Total'].values[i].round(2)])
+        file.write(tabulate(tabla, headers=["Pais", "Total de cancelado"], tablefmt="grid"))
+        file.write("\nTop 10 paises con mas facturas canceladas\n")
+        df_canc_paises = df_cancel.groupby(df['Country'])['InvoiceNo'].count()
+        df_canc_paises = df_canc_paises.reset_index()
+        df_canc_paises = df_canc_paises.sort_values(by = 'InvoiceNo', ascending=False).head(10)
+        tabla = []
+        for i in range(10):
+            tabla.append([df_canc_paises['Country'].values[i], df_canc_paises['InvoiceNo'].values[i]])
+        file.write(tabulate(tabla, headers=["Pais", "Total de facturas"], tablefmt="grid"))
+
 #1
 def Limpieza_datos(df):
     #Limpieza
@@ -87,7 +251,7 @@ def Analisis_Graficas(df):
     df_country = pd.concat([df_country_10,suma_c])
 
     df_by_invoice = df_by_invoice.reset_index()
-
+    Descriptive_Statistics(df, df_country)
     carpeta = "graficos"
 
     if not os.path.exists(carpeta):
@@ -132,7 +296,9 @@ def Analisis_Graficas(df):
     plt.close()
 
 #4
-#def Estadisticas_datos(df):
+def Estadisticas_datos(df):
+    print("Hola")
+
 ruta = Limpieza_datos(df)
 df = pd.read_csv(ruta, encoding = "latin-1")
 Analisis_Graficas(df)

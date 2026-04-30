@@ -4,6 +4,7 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 import os
 from tabulate import tabulate
+from scipy.stats import kruskal 
 
 api.dataset_download_files("tunguz/online-retail", path='data', unzip=True)
 df = pd.read_csv('data/Online_Retail.csv', encoding = "latin-1")
@@ -297,9 +298,42 @@ def Analisis_Graficas(df):
 
 #4
 def Estadisticas_datos(df):
-    print("Hola")
+    def interpretacion_p(p, file):
+        if p < 0.05:
+            file.write("Dado que el p-value es menor a 0.05, se concluye que existen diferencias \nestadisticamente significativas entre al menos dos datos\n")
+        else:
+            file.write("Dado que el p-value es mayor/igual a 0.05, se concluye que no existen diferencias \nestadisticamente significativas entre al menos dos datos\n")
+    with open("kruskallwallistest.txt", 'a') as file: 
+        file.write("\n==== KRUSKAL WALLI TEST====\n")
+        file.write("Se evaluo si el total de compras difiere segun el dia de la semana.\n")
+        file.write("Sabado no esta incluido debido a que no se tienen registros de este dia en el dataset\n")
+        df_by_invoice = df.groupby(["InvoiceNo", "Day", "SpecialDate", "Country"])[["Total"]].sum()
+        df_by_invoice = df_by_invoice.reset_index()
+        df_by_invoice = df_by_invoice[df_by_invoice['Total'] >= 0]
+        df_by_invoice = df_by_invoice.drop(columns = 'InvoiceNo')
+        df_by_invoice = df_by_invoice.sort_values(by = 'Day')
+        h_statistic, p_value = kruskal(df_by_invoice[df_by_invoice['Day'] == 'Thursday']['Total'].values, df_by_invoice[df_by_invoice['Day'] == 'Wednesday']['Total'].values, df_by_invoice[df_by_invoice['Day'] == 'Tuesday']['Total'].values, df_by_invoice[df_by_invoice['Day'] == 'Monday']['Total'].values, df_by_invoice[df_by_invoice['Day'] == 'Friday']['Total'].values, df_by_invoice[df_by_invoice['Day'] == 'Sunday']['Total'].values)
+        file.write(f"H(5): {h_statistic}\n")
+        file.write(f"p: {p_value}\n")
+        interpretacion_p(p_value, file)
+        file.write("\nSe evaluo si el total de compras difiere segun la fecha especial.\n")
+        fechas_especiales = df_by_invoice['SpecialDate'].unique()
+        df_by_invoice = df_by_invoice.sort_values(by = 'SpecialDate')
+        h_statistic, p_value = kruskal(df_by_invoice[df_by_invoice['SpecialDate'] == fechas_especiales[0]]['Total'].values, df_by_invoice[df_by_invoice['SpecialDate'] == fechas_especiales[1]]['Total'].values, df_by_invoice[df_by_invoice['SpecialDate'] == fechas_especiales[2]]['Total'].values, df_by_invoice[df_by_invoice['SpecialDate'] == fechas_especiales[3]]['Total'].values)
+        file.write(f"H(3): {h_statistic}\n")
+        file.write(f"p: {p_value}\n")
+        interpretacion_p(p_value, file)
+        file.write("\nSe evaluo si el total de compras difiere segun el pais.\n")
+        file.write("Para esta prubea se tomaron los 5 paises con mayor total, \nexcluyendo a United Kingdom debido a su alta proporcion en el dataset.\n")
+        paises = df_by_invoice['Country'].unique()
+        df_by_invoice = df_by_invoice.sort_values(by = 'Total', ascending=False)
+        h_statistic, p_value = kruskal(df_by_invoice[df_by_invoice['Country'] == paises[1]]['Total'].values, df_by_invoice[df_by_invoice['Country'] == paises[2]]['Total'].values, df_by_invoice[df_by_invoice['Country'] == paises[3]]['Total'].values, df_by_invoice[df_by_invoice['Country'] == paises[4]]['Total'].values, df_by_invoice[df_by_invoice['Country'] == paises[5]]['Total'].values)
+        file.write(f"H(4): {h_statistic}\n")
+        file.write(f"p: {p_value}\n")
+        interpretacion_p(p_value, file)
 
 ruta = Limpieza_datos(df)
 df = pd.read_csv(ruta, encoding = "latin-1")
 Analisis_Graficas(df)
+Estadisticas_datos(df)
 print("Listo")

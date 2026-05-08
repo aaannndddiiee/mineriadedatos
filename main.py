@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import os
 from tabulate import tabulate
 from scipy.stats import kruskal 
+import statsmodels.formula.api as smf
 
 api.dataset_download_files("tunguz/online-retail", path='data', unzip=True)
 df = pd.read_csv('data/Online_Retail.csv', encoding = "latin-1")
@@ -238,6 +239,8 @@ def Limpieza_datos(df):
 
 #2 + 3
 def Analisis_Graficas(df):
+    color_palette = sns.color_palette('rocket')
+
     df_by_country = df.groupby(["Country"])["CustomerID"].nunique()
     df_by_invoice = df.groupby(["CustomerID", "InvoiceNo", "InvoiceDate", "Year", "Month", "Day", "TimesDay", "SpecialDate"])[["Total"]].sum()
     df_by_client = df_by_invoice.copy()
@@ -257,8 +260,6 @@ def Analisis_Graficas(df):
 
     if not os.path.exists(carpeta):
         os.mkdir(carpeta)
-
-    color_palette = sns.color_palette('rocket')
 
     plt.pie(df_country, labels = df_country.keys(),autopct = "%0.2f%%", colors = color_palette,rotatelabels=90, labeldistance= 1, shadow=True, radius = 1.2)
     plt.legend(df_country.keys(), loc = 'lower left')
@@ -332,8 +333,61 @@ def Estadisticas_datos(df):
         file.write(f"p: {p_value}\n")
         interpretacion_p(p_value, file)
 
+#5
+def Correlation(df):
+    df_corr = df.drop(columns = ['StockCode',"InvoiceNo", "Day", "Month", "SpecialDate", "Country", "TimesDay", "CustomerID", "Unnamed: 0"])
+    df_corr["InvoiceDate"] = pd.to_datetime(df_corr["InvoiceDate"])
+    df_corr["Day"]= df_corr["InvoiceDate"].dt.day
+    df_corr["Month"] = df_corr["InvoiceDate"].dt.month
+    df_corr = df_corr.drop(columns="InvoiceDate")
+
+    color_palette = sns.color_palette('rocket', as_cmap=True)
+    sns.heatmap(df_corr.corr(), annot=True, cmap=color_palette)
+    plt.tittle("Matriz de correlacion")
+    plt.tight_layout()
+    plt.savefig("LinearModel/MatrizCorrelacion.png", bbox_inches='tight', dpi=300)
+    plt.close()
+def LinearModel(df):
+    carpeta = "LinearModel"
+    df['InvoiceDate'] = pd.to_datetime(df['InvoiceDate'])
+
+    if not os.path.exists(carpeta):
+        os.mkdir(carpeta)
+    
+    df_no_c = df[df["Total"] >= 0]
+    df_no_c["InvoiceDate"] = df_no_c['InvoiceDate'].dt.date
+    df_total_dia = df_no_c.groupby(["InvoiceDate"])["Total"].sum()
+    df_total_dia = df_total_dia.reset_index()
+    df_total_dia['Numero'] = df_total_dia.index
+    
+    sns.scatterplot(data = df_total_dia, x = "InvoiceDate",y = "Total", color = "indigo")
+    plt.tittle("Total de venta por dia")
+    plt.tight_layout()
+    plt.savefig("LinearModel/TotalDia.png", bbox_inches='tight', dpi=300)
+    plt.close()
+
+    lm = smf.ols(formula='Total ~ Numero', data=df_total_dia).fit()
+    X_new = pd.DataFrame({'Numero': [df_total_dia.Numero.min(), df_total_dia.Numero.max()]})
+    preds = lm.predict(X_new)
+
+    sns.scatterplot(data = df_total_dia, x = "Numero",y = "Total", color = 'indigo')
+    plt.plot(X_new, preds, c='red', linewidth=2)
+    plt.tittle("Least Squares Line")
+    plt.tight_layout()
+    plt.savefig("LinearModel/TotalDia_LeastSquaresLine.png", bbox_inches='tight', dpi=300)
+    plt.close()
+
+    Correlation(df_no_c)
+
+    with open("LinearModel.txt", 'a') as file:
+        file.write("\n==== LINEAR MODEL ====\n")
+        file.write(f"   Prob(F-statistic): {lm.f_pvalue}\n")
+        file.write(f"   R2: {lm.rsquared}\n")
+        file.write(f"   Coeficiente: {lm.params['Numero']}")
+
 ruta = Limpieza_datos(df)
 df = pd.read_csv(ruta, encoding = "latin-1")
 Analisis_Graficas(df)
 Estadisticas_datos(df)
+LinearModel(df)
 print("Listo")

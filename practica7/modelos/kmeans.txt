@@ -1,0 +1,5 @@
+
+==== KMEANS ====
+Clasificacion de TimesDay
+Coeficiente de silueta: 0.82
+Inercia: 76519.01943825276

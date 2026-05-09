@@ -13,7 +13,7 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.cluster import KMeans
 from sklearn.metrics import mean_absolute_error, mean_squared_error
 
-api.dataset_download_files("tunguz/online-retail", path='data', unzip=True)
+#api.dataset_download_files("tunguz/online-retail", path='data', unzip=True)
 df = pd.read_csv('data/Online_Retail.csv', encoding = "latin-1")
 
 def categorizarHora(fila):
@@ -509,6 +509,7 @@ def Linear_Regression(df):
     df_for['InvoiceDate'] = df_for['InvoiceDate'].dt.date
     df_for = df_for.groupby("InvoiceDate")['Total'].sum()
     df_for = df_for.reset_index()
+    df_for['Numero'] = df_for.index
 
     df_train, df_test = train_test_split(df_for, test_size=0.2, shuffle=False)
     lm = smf.ols(formula='Total ~ Numero', data=df_train).fit()

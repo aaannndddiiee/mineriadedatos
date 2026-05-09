@@ -9,7 +9,7 @@ import statsmodels.formula.api as smf
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.metrics import confusion_matrix, classification_report, accuracy_score, silhouette_score
 from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import MinMaxScaler
+from sklearn.preprocessing import StandardScaler
 from sklearn.cluster import KMeans
 
 api.dataset_download_files("tunguz/online-retail", path='data', unzip=True)
@@ -398,16 +398,15 @@ def KNN(df):
         os.mkdir(carpeta)
 
     df['InvoiceDate'] = pd.to_datetime(df['InvoiceDate'])
-    df = df.drop(columns='Unnamed: 0')
     df_knn = df[df['Total'] >= 0]
-    df_knn = df_knn.drop(columns = ['InvoiceNo', 'StockCode', 'InvoiceDate', 'CustomerID','Country', 'Total', 'Year'])
+    df_knn = df_knn.drop(columns = ['InvoiceNo', 'StockCode', 'InvoiceDate', 'CustomerID','Country', 'Total', 'Year', 'Unnamed: 0'])
     X = df_knn.drop('TimesDay', axis = 1)
     Y = df_knn['TimesDay']
 
     X_dummies = pd.get_dummies(X)
 
     X_train, X_test, Y_train, Y_test = train_test_split(X_dummies,Y,test_size = 0.2, random_state = 42)
-    scaler = MinMaxScaler()
+    scaler = StandardScaler()
     columns = ['Quantity']
     X_train[columns] = scaler.fit_transform(X_train[columns])
     X_test[columns] = scaler.transform(X_test[columns])
@@ -437,7 +436,7 @@ def KNN(df):
 #7
 def K_Means(df):
     df_km = df[df['Total'] >= 0]
-    df_km = df_km.drop(columns = ['StockCode', 'InvoiceDate', 'Country', 'TimesDay', 'Day', 'Month', 'Year', 'SpecialDate', 'Quantity', 'UnitPrice'])
+    df_km = df_km.drop(columns = ['StockCode', 'InvoiceDate', 'Country', 'TimesDay', 'Day', 'Month', 'Year', 'SpecialDate', 'Quantity', 'UnitPrice', 'Unnamed: 0'])
     df_km = df_km.groupby('CustomerID').agg(
         TotalCustomer = ('Total', 'sum'),
         AvgPurchases = ('Total', 'mean'),
@@ -454,7 +453,7 @@ def K_Means(df):
 
     df_km_scale = df_km.copy()
 
-    scaler = MinMaxScaler()
+    scaler = StandardScaler()
     columns = ['TotalCustomer', 'AvgPurchases']
     df_km_scale[columns] = scaler.fit_transform(df_km_scale[columns])
 
@@ -469,6 +468,7 @@ def K_Means(df):
     plt.xlabel("Numero de clusters")
     plt.ylabel('Inercia')
     plt.grid(True)
+    plt.tight_layout()
     plt.savefig("modelos/KMeans_metodoCodo.png", bbox_inches='tight', dpi=300)
     plt.close()
 
@@ -476,7 +476,27 @@ def K_Means(df):
     labels = kmeans.fit_predict(df_km_scale)
 
     silhouette = silhouette_score(df_km_scale, labels)
-    
+    centers = kmeans.cluster_centers_
+    inertia = kmeans.inertia_
+
+    plt.scatter( x=df_km_scale['TotalCustomer'], y=df_km_scale['NumPurchases'], c = labels, alpha=0.5)
+    plt.scatter(centers[:, 0], centers[:, 1],c='red', s=200, marker='X', label='Centroides')
+    plt.xlabel("TotalCustomer scaled")
+    plt.ylabel("NumPurcharses scaled")
+    plt.title("KMeans")
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig("modelos/KMeans_Clusters.png", bbox_inches='tight', dpi=300)
+    plt.close()
+    with open("modelos/kmeans.txt", 'a') as file:
+        file.write("\n==== KMEANS ====\n")
+        file.write("Clasificacion de TimesDay\n")
+        file.write(f"Coeficiente de silueta: {silhouette:.2f}\n")
+        file.write(f"Inercia: {inertia}\n")
+
+#8
+def Linear_Regression(df):
+    print("Hola")
 
 print("Limpieza Datos...\n")
 ruta = Limpieza_datos(df)
@@ -489,4 +509,6 @@ print("Linear Model...\n")
 LinearModel(df)
 print("KNN...\n")
 KNN(df)
+print("KMeans...\n")
+K_Means(df)
 print("Listo")

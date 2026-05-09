@@ -7,9 +7,10 @@ from tabulate import tabulate
 from scipy.stats import kruskal 
 import statsmodels.formula.api as smf
 from sklearn.neighbors import KNeighborsClassifier
-from sklearn.metrics import confusion_matrix, classification_report, accuracy_score
+from sklearn.metrics import confusion_matrix, classification_report, accuracy_score, silhouette_score
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import MinMaxScaler
+from sklearn.cluster import KMeans
 
 api.dataset_download_files("tunguz/online-retail", path='data', unzip=True)
 df = pd.read_csv('data/Online_Retail.csv', encoding = "latin-1")
@@ -429,16 +430,63 @@ def KNN(df):
     with open("modelos/knn.txt", 'a') as file:
         file.write("\n==== KNN ====\n")
         file.write("Clasificacion de TimesDay\n")
-        file.write(f"Precisión: {accuracy:.2f}\n")
+        file.write(f"Precision: {accuracy:.2f}\n")
         file.write("Reporte de Clasificacion\n")
         file.write(knn_classification)
 
 #7
+def K_Means(df):
+    df_km = df[df['Total'] >= 0]
+    df_km = df_km.drop(columns = ['StockCode', 'InvoiceDate', 'Country', 'TimesDay', 'Day', 'Month', 'Year', 'SpecialDate', 'Quantity', 'UnitPrice'])
+    df_km = df_km.groupby('CustomerID').agg(
+        TotalCustomer = ('Total', 'sum'),
+        AvgPurchases = ('Total', 'mean'),
+        NumPurchases = ('InvoiceNo', 'nunique')
+    )
+    df_km = df_km.reset_index()
+    df_km = df_km.drop(columns = 'CustomerID')
 
+    sns.heatmap(df_km.corr(), annot = True, cmap='rocket')
+    plt.title("Matriz de correlacion")
+    plt.tight_layout()
+    plt.savefig("modelos/KMeans_matrizcorrelacion.png", bbox_inches='tight', dpi=300)
+    plt.close()
+
+    df_km_scale = df_km.copy()
+
+    scaler = MinMaxScaler()
+    columns = ['TotalCustomer', 'AvgPurchases']
+    df_km_scale[columns] = scaler.fit_transform(df_km_scale[columns])
+
+    inertias = []
+    K = range(2,20)
+    for k in K:
+        kmeans= KMeans(n_clusters=k, random_state=42)
+        kmeans.fit(df_km_scale)
+        inertias.append(kmeans.inertia_)
+    plt.plot(K, inertias, 'o-')
+    plt.title("Metodo del codo")
+    plt.xlabel("Numero de clusters")
+    plt.ylabel('Inercia')
+    plt.grid(True)
+    plt.savefig("modelos/KMeans_metodoCodo.png", bbox_inches='tight', dpi=300)
+    plt.close()
+
+    kmeans = KMeans(n_clusters=3, random_state=42, n_init=10)
+    labels = kmeans.fit_predict(df_km_scale)
+
+    silhouette = silhouette_score(df_km_scale, labels)
+    
+
+print("Limpieza Datos...\n")
 ruta = Limpieza_datos(df)
 df = pd.read_csv(ruta, encoding = "latin-1")
+print("Analisis y Graficas...\n")
 Analisis_Graficas(df)
+print("Estadisticas datos...\n")
 Estadisticas_datos(df)
+print("Linear Model...\n")
 LinearModel(df)
+print("KNN...\n")
 KNN(df)
 print("Listo")

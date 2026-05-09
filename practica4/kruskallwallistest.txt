@@ -1,0 +1,22 @@
+
+==== KRUSKAL WALLI TEST====
+Se evaluo si el total de compras difiere segun el dia de la semana.
+Sabado no esta incluido debido a que no se tienen registros de este dia en el dataset
+H(5): 34.787576409793004
+p: 1.6588893867412425e-06
+Dado que el p-value es menor a 0.05, se concluye que existen diferencias 
+estadisticamente significativas entre al menos dos datos
+
+Se evaluo si el total de compras difiere segun la fecha especial.
+H(3): 7.7132797360677765
+p: 0.05232433608802668
+Dado que el p-value es mayor/igual a 0.05, se concluye que no existen diferencias 
+estadisticamente significativas entre al menos dos datos
+
+Se evaluo si el total de compras difiere segun el pais.
+Para esta prubea se tomaron los 5 paises con mayor total, 
+excluyendo a United Kingdom debido a su alta proporcion en el dataset.
+H(4): 75.60317848404597
+p: 1.4853469161258823e-15
+Dado que el p-value es menor a 0.05, se concluye que existen diferencias 
+estadisticamente significativas entre al menos dos datos

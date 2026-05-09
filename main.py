@@ -391,6 +391,11 @@ def LinearModel(df):
 
 #6
 def KNN(df):
+    carpeta = "modelos"
+
+    if not os.path.exists(carpeta):
+        os.mkdir(carpeta)
+
     df['InvoiceDate'] = pd.to_datetime(df['InvoiceDate'])
     df = df.drop(columns='Unnamed: 0')
     df_knn = df[df['Total'] >= 0]
@@ -411,10 +416,29 @@ def KNN(df):
 
     Y_pred = knn.predict(X_test)
 
+    color_palette = sns.color_palette('rocket', as_cmap = True)
+    sns.heatmap(confusion_matrix(Y_test, Y_pred),  annot=True, cmap=color_palette, xticklabels = ['Afternoon', 'Evening', 'Morning'], yticklabels = ['Afternoon', 'Evening', 'Morning'])
+    plt.title("Matriz de Confusion KNN")
+    plt.tight_layout()
+    plt.savefig("modelos/KNN_matrizconfusion.png", bbox_inches='tight', dpi=300)
+    plt.close()
+
+    accuracy = accuracy_score(Y_test, Y_pred)
+    knn_classification = classification_report(Y_test, Y_pred)
+
+    with open("modelos/knn.txt", 'a') as file:
+        file.write("\n==== KNN ====\n")
+        file.write("Clasificacion de TimesDay\n")
+        file.write(f"Precisión: {accuracy:.2f}\n")
+        file.write("Reporte de Clasificacion\n")
+        file.write(knn_classification)
+
+#7
 
 ruta = Limpieza_datos(df)
 df = pd.read_csv(ruta, encoding = "latin-1")
 Analisis_Graficas(df)
 Estadisticas_datos(df)
 LinearModel(df)
+KNN(df)
 print("Listo")

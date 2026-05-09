@@ -6,6 +6,10 @@ import os
 from tabulate import tabulate
 from scipy.stats import kruskal 
 import statsmodels.formula.api as smf
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.metrics import confusion_matrix, classification_report, accuracy_score
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import MinMaxScaler
 
 api.dataset_download_files("tunguz/online-retail", path='data', unzip=True)
 df = pd.read_csv('data/Online_Retail.csv', encoding = "latin-1")
@@ -343,7 +347,7 @@ def Correlation(df):
 
     color_palette = sns.color_palette('rocket', as_cmap=True)
     sns.heatmap(df_corr.corr(), annot=True, cmap=color_palette)
-    plt.tittle("Matriz de correlacion")
+    plt.title("Matriz de correlacion")
     plt.tight_layout()
     plt.savefig("LinearModel/MatrizCorrelacion.png", bbox_inches='tight', dpi=300)
     plt.close()
@@ -361,7 +365,7 @@ def LinearModel(df):
     df_total_dia['Numero'] = df_total_dia.index
     
     sns.scatterplot(data = df_total_dia, x = "InvoiceDate",y = "Total", color = "indigo")
-    plt.tittle("Total de venta por dia")
+    plt.title("Total de venta por dia")
     plt.tight_layout()
     plt.savefig("LinearModel/TotalDia.png", bbox_inches='tight', dpi=300)
     plt.close()
@@ -372,7 +376,7 @@ def LinearModel(df):
 
     sns.scatterplot(data = df_total_dia, x = "Numero",y = "Total", color = 'indigo')
     plt.plot(X_new, preds, c='red', linewidth=2)
-    plt.tittle("Least Squares Line")
+    plt.title("Least Squares Line")
     plt.tight_layout()
     plt.savefig("LinearModel/TotalDia_LeastSquaresLine.png", bbox_inches='tight', dpi=300)
     plt.close()
@@ -384,6 +388,29 @@ def LinearModel(df):
         file.write(f"   Prob(F-statistic): {lm.f_pvalue}\n")
         file.write(f"   R2: {lm.rsquared}\n")
         file.write(f"   Coeficiente: {lm.params['Numero']}")
+
+#6
+def KNN(df):
+    df['InvoiceDate'] = pd.to_datetime(df['InvoiceDate'])
+    df = df.drop(columns='Unnamed: 0')
+    df_knn = df[df['Total'] >= 0]
+    df_knn = df_knn.drop(columns = ['InvoiceNo', 'StockCode', 'InvoiceDate', 'CustomerID','Country', 'Total', 'Year'])
+    X = df_knn.drop('TimesDay', axis = 1)
+    Y = df_knn['TimesDay']
+
+    X_dummies = pd.get_dummies(X)
+
+    X_train, X_test, Y_train, Y_test = train_test_split(X_dummies,Y,test_size = 0.2, random_state = 42)
+    scaler = MinMaxScaler()
+    columns = ['Quantity']
+    X_train[columns] = scaler.fit_transform(X_train[columns])
+    X_test[columns] = scaler.transform(X_test[columns])
+
+    knn = KNeighborsClassifier(n_neighbors=14, metric='manhattan')
+    knn.fit(X_train, Y_train)
+
+    Y_pred = knn.predict(X_test)
+
 
 ruta = Limpieza_datos(df)
 df = pd.read_csv(ruta, encoding = "latin-1")

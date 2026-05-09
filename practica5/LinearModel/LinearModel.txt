@@ -1,0 +1,5 @@
+
+==== LINEAR MODEL ====
+   Prob(F-statistic): 5.982060050420171e-13
+   R2: 0.15752392211012
+   Coeficiente: 79.30033537616941

@@ -11,6 +11,7 @@ from sklearn.metrics import confusion_matrix, classification_report, accuracy_sc
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from sklearn.cluster import KMeans
+from sklearn.metrics import mean_absolute_error, mean_squared_error
 
 api.dataset_download_files("tunguz/online-retail", path='data', unzip=True)
 df = pd.read_csv('data/Online_Retail.csv', encoding = "latin-1")
@@ -361,6 +362,7 @@ def LinearModel(df):
     
     df_no_c = df[df["Total"] >= 0]
     df_no_c["InvoiceDate"] = df_no_c['InvoiceDate'].dt.date
+    df_no_c = df_no_c.sort_values(by='InvoiceDate', ascending=True)
     df_total_dia = df_no_c.groupby(["InvoiceDate"])["Total"].sum()
     df_total_dia = df_total_dia.reset_index()
     df_total_dia['Numero'] = df_total_dia.index
@@ -384,7 +386,7 @@ def LinearModel(df):
 
     Correlation(df_no_c)
 
-    with open("LinearModel.txt", 'a') as file:
+    with open("LinearModel/LinearModel.txt", 'a') as file:
         file.write("\n==== LINEAR MODEL ====\n")
         file.write(f"   Prob(F-statistic): {lm.f_pvalue}\n")
         file.write(f"   R2: {lm.rsquared}\n")
@@ -496,7 +498,44 @@ def K_Means(df):
 
 #8
 def Linear_Regression(df):
-    print("Hola")
+    carpeta = "forecasting"
+    df = df.drop(columns='Unnamed: 0')
+    df = df[df['Total'] >= 0]
+
+    if not os.path.exists(carpeta):
+        os.mkdir(carpeta)
+    df_for = df_for.drop(columns = ['StockCode', 'Quantity', 'UnitPrice', 'CustomerID','Country', 'Day', 'Year', 'Month', 'SpecialDate', 'TimesDay', 'InvoiceNo'])
+    df_for['InvoiceDate'] = pd.to_datetime(df_for['InvoiceDate'])
+    df_for['InvoiceDate'] = df_for['InvoiceDate'].dt.date
+    df_for = df_for.groupby("InvoiceDate")['Total'].sum()
+    df_for = df_for.reset_index()
+
+    df_train, df_test = train_test_split(df_for, test_size=0.2, shuffle=False)
+    lm = smf.ols(formula='Total ~ Numero', data=df_train).fit()
+
+    X_new = pd.DataFrame({'Numero': [df_for.Numero.min(), df_for.Numero.max()]})
+    preds = lm.predict(X_new)
+    predicciones = lm.predict(exog=dict(Numero=df_test['Numero']))
+
+    sns.scatterplot(data=df_train, x= "Numero",y="Total", color = 'indigo')
+    sns.scatterplot(data=df_test, x= "Numero",y="Total", color = 'purple', label = 'Datos reales')
+    plt.plot(X_new, preds, c='red', linewidth=2)
+    plt.plot(predicciones,c = 'blue', label='Prediciones ')
+    plt.title("Predicion del modelo")
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig("LinearModel/Predicion.png", bbox_inches='tight', dpi=300)
+    plt.close()
+
+    mae = mean_absolute_error(df_test['Total'], predicciones) / df_for['Total'].mean()
+    mse = mean_squared_error(df_test['Total'], predicciones)
+    rmse = mse ** (1/2)
+
+    with open("LinearModel/LinearModel.txt", 'a') as file:
+        file.write("\n")
+        file.write("\n==== LINEAR MODEL FORECASTING ====\n")
+        file.write(f"    MAE: {mae}\n")
+        file.write(f"    RMSE: {rmse}\n")
 
 print("Limpieza Datos...\n")
 ruta = Limpieza_datos(df)
@@ -511,4 +550,6 @@ print("KNN...\n")
 KNN(df)
 print("KMeans...\n")
 K_Means(df)
+print("Forecasting...\n")
+Linear_Regression(df)
 print("Listo")

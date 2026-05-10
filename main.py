@@ -12,8 +12,9 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from sklearn.cluster import KMeans
 from sklearn.metrics import mean_absolute_error, mean_squared_error
+from wordcloud import WordCloud
 
-#api.dataset_download_files("tunguz/online-retail", path='data', unzip=True)
+api.dataset_download_files("tunguz/online-retail", path='data', unzip=True)
 df = pd.read_csv('data/Online_Retail.csv', encoding = "latin-1")
 
 def categorizarHora(fila):
@@ -538,6 +539,19 @@ def Linear_Regression(df):
         file.write(f"    MAE: {mae}\n")
         file.write(f"    RMSE: {rmse}\n")
 
+#9
+def TextAnalysis():
+    df = pd.read_csv('data/Online_Retail.csv', encoding = "latin-1", usecols=['Description'])
+    df = df.dropna()
+
+    text = ' '.join(df['Description'])
+
+    wordcloud = WordCloud(width=800, height=400, background_color='white', collocations=False, stopwords=set(['SET', 'BOX', 'PACK', 'LARGE', 'SMALL', 'OF'])).generate(text)
+    plt.imshow(wordcloud, interpolation='bilinear')
+    plt.axis("off")
+    plt.savefig("WordCloud.png", bbox_inches='tight', dpi=300)
+    plt.close()
+
 print("Limpieza Datos...\n")
 ruta = Limpieza_datos(df)
 df = pd.read_csv(ruta, encoding = "latin-1")
@@ -553,4 +567,6 @@ print("KMeans...\n")
 K_Means(df)
 print("Forecasting...\n")
 Linear_Regression(df)
+print("WordCloud...\n")
+TextAnalysis()
 print("Listo")
